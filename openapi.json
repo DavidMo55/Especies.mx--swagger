@@ -1,0 +1,310 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Especies.mx — Descubrir especies",
+    "version": "0.1.0",
+    "description": "Propuesta inicial de contrato para API-07"
+  },
+  "security": [],
+  "tags": [
+    {
+      "name": "Descubrir",
+      "description": "Galería pública de especies de México."
+    }
+  ],
+  "paths": {
+    "/api/v1/descubrir": {
+      "get": {
+        "tags": [
+          "Descubrir"
+        ],
+        "operationId": "descubrirEspecies",
+        "summary": "API-07 — Descubrir especies",
+        "description": "Obtiene tarjetas para la galería de Descubrir. Sin grupo devuelve animales, plantas y hongos. El grupo se resuelve por pertenencia a Animalia, Plantae o Fungi mediante la jerarquía taxonómica; no mediante coincidencias parciales en taxon_ancestry. Propuesta: incluir únicamente conceptos de rango especie (resuelto con taxon_ranks), ordenar por taxon_concepts.id ascendente y devolver una tarjeta por concepto. Seleccionar nombre común primario en español; si falta, devolver null. Seleccionar una imagen representativa y resolver empates por taxon_media.id ascendente; si falta, devolver null. La paginación usa ese orden estable, sin aleatoriedad. El formato de ancestry, los valores del rango, los estados publicables y los valores de media_role deben validarse antes de implementar.",
+        "x-database-mapping": {
+          "taxon_concepts": [
+            "id",
+            "taxon_name_id",
+            "taxon_rank_id",
+            "taxon_ancestry"
+          ],
+          "taxon_ranks": [
+            "id",
+            "rank_name"
+          ],
+          "taxon_names": [
+            "id",
+            "scientific_name",
+            "canonical_name"
+          ],
+          "vernacular_names": [
+            "taxon_concept_id",
+            "vernacular_name",
+            "language",
+            "is_primary"
+          ],
+          "taxon_media": [
+            "id",
+            "taxon_concept_id",
+            "media_type",
+            "media_role",
+            "access_uri",
+            "thumbnail_uri",
+            "creator",
+            "license"
+          ]
+        },
+        "parameters": [
+          {
+            "name": "grupo",
+            "in": "query",
+            "required": false,
+            "description": "Grupo de la galería. Omitir para incluir los tres grupos.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "animales",
+                "plantas",
+                "hongos"
+              ]
+            },
+            "example": "animales"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "description": "Página solicitada. Una página fuera de rango devuelve data vacío.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "description": "Cantidad máxima de tarjetas por página.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 24
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Galería obtenida. Sin coincidencias devuelve HTTP 200 con data vacío y total igual a 0.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DescubrirResponse"
+                },
+                "examples": {
+                  "conResultados": {
+                    "summary": "Datos ilustrativos; no corresponden a un registro verificado.",
+                    "value": {
+                      "data": [
+                        {
+                          "id": 123,
+                          "nombre_cientifico": "Panthera onca",
+                          "nombre_comun": "Jaguar",
+                          "grupo": "animales",
+                          "imagen": null
+                        }
+                      ],
+                      "pagination": {
+                        "page": 1,
+                        "page_size": 24,
+                        "total": 1,
+                        "total_pages": 1
+                      }
+                    }
+                  },
+                  "sinResultados": {
+                    "value": {
+                      "data": [],
+                      "pagination": {
+                        "page": 1,
+                        "page_size": 24,
+                        "total": 0,
+                        "total_pages": 0
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Grupo inválido o parámetros de paginación fuera de los límites.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "code": "INVALID_PARAMETER",
+                  "message": "grupo debe ser animales, plantas u hongos."
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Error interno al consultar la galería.",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "code": "INTERNAL_ERROR",
+                  "message": "No fue posible obtener las especies."
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "DescubrirResponse": {
+        "type": "object",
+        "required": [
+          "data",
+          "pagination"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EspecieTarjeta"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          }
+        }
+      },
+      "EspecieTarjeta": {
+        "type": "object",
+        "required": [
+          "id",
+          "nombre_cientifico",
+          "nombre_comun",
+          "grupo",
+          "imagen"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "taxon_concepts.id"
+          },
+          "nombre_cientifico": {
+            "type": "string",
+            "description": "taxon_names.scientific_name; usar canonical_name si falta."
+          },
+          "nombre_comun": {
+            "type": "string",
+            "nullable": true
+          },
+          "grupo": {
+            "type": "string",
+            "enum": [
+              "animales",
+              "plantas",
+              "hongos"
+            ]
+          },
+          "imagen": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Imagen"
+              }
+            ],
+            "nullable": true,
+            "description": "Imagen representativa; null cuando no está disponible."
+          }
+        }
+      },
+      "Imagen": {
+        "type": "object",
+        "nullable": true,
+        "required": [
+          "url",
+          "thumbnail_url",
+          "autor",
+          "licencia"
+        ],
+        "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "thumbnail_url": {
+            "type": "string",
+            "format": "uri",
+            "nullable": true
+          },
+          "autor": {
+            "type": "string",
+            "nullable": true
+          },
+          "licencia": {
+            "type": "string",
+            "nullable": true
+          }
+        }
+      },
+      "Pagination": {
+        "type": "object",
+        "required": [
+          "page",
+          "page_size",
+          "total",
+          "total_pages"
+        ],
+        "properties": {
+          "page": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "page_size": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "total": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0,
+            "description": "Total de conceptos distintos que cumplen el filtro."
+          },
+          "total_pages": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Techo de total / page_size; 0 si no hay resultados."
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": [
+          "code",
+          "message"
+        ],
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

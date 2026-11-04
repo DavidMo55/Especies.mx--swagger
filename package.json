@@ -1,0 +1,11 @@
+{
+  "name": "especies-mx-swagger",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "start": "node server.cjs"
+  },
+  "dependencies": {
+    "swagger-ui-dist": "5.34.1"
+  }
+}

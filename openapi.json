@@ -1,79 +1,70 @@
 {
-  "openapi": "3.0.3",
+  "openapi": "3.1.0",
   "info": {
-    "title": "Especies.mx — Descubrir especies",
-    "version": "0.1.0",
-    "description": "Propuesta inicial de contrato para API-07"
+    "title": "Especies.mx — API interna",
+    "version": "0.2.0",
+    "description": "Contrato propuesto de los 21 endpoints de consulta. No implica backend desplegado ni certificados emitidos. Acceso mTLS desde clientes de confianza; la web pública consulta mediante su backend, que custodia la clave privada. Certificado X.509 confiable, vigente, no revocado e identidad registrada con permiso de lectura. Fallos previos a HTTP no garantizan código, JSON ni trazabilidad; identidad aceptada sin permiso recibe 403. Todos los errores HTTP usan application/problem+json; decidir por status y code. Accept admite application/json y application/problem+json; sin Accept se admite JSON. Fechas de recepción UTC y Cache-Control: no-store. IDs serializados como cadenas. Los ejemplos son ilustrativos. Reglas nuevas son propuestas sujetas a validación con el esquema real. Coordenadas lat/lng siempre juntas; radio requiere ambas. Multimedia sin permiso de publicación se omite; imagen puede ser null. Se excluyen coordenadas sensibles y registros no publicables antes de filtrar, contar o calcular distancias. Las rutas originales se conservan; la especie semanal del PDF es referencia de formato, no un endpoint añadido."
   },
-  "security": [],
+  "servers": [
+    {
+      "url": "https://api.sandbox.especies.mx",
+      "description": "Destino propuesto; disponibilidad no verificada."
+    }
+  ],
+  "security": [
+    {
+      "clientCertificate": []
+    }
+  ],
   "tags": [
     {
-      "name": "Descubrir",
-      "description": "Galería pública de especies de México."
+      "name": "Inicio"
+    },
+    {
+      "name": "Explorar"
+    },
+    {
+      "name": "Patrimonio"
+    },
+    {
+      "name": "Descubrir"
+    },
+    {
+      "name": "Ficha"
+    },
+    {
+      "name": "Geografía"
     }
   ],
   "paths": {
-    "/api/v1/descubrir": {
+    "/api/v1/buscar": {
       "get": {
         "tags": [
-          "Descubrir"
+          "Inicio"
         ],
-        "operationId": "descubrirEspecies",
-        "summary": "API-07 — Descubrir especies",
-        "description": "Obtiene tarjetas para la galería de Descubrir. Sin grupo devuelve animales, plantas y hongos. El grupo se resuelve por pertenencia a Animalia, Plantae o Fungi mediante la jerarquía taxonómica; no mediante coincidencias parciales en taxon_ancestry. Propuesta: incluir únicamente conceptos de rango especie (resuelto con taxon_ranks), ordenar por taxon_concepts.id ascendente y devolver una tarjeta por concepto. Seleccionar nombre común primario en español; si falta, devolver null. Seleccionar una imagen representativa y resolver empates por taxon_media.id ascendente; si falta, devolver null. La paginación usa ese orden estable, sin aleatoriedad. El formato de ancestry, los valores del rango, los estados publicables y los valores de media_role deben validarse antes de implementar.",
-        "x-database-mapping": {
-          "taxon_concepts": [
-            "id",
-            "taxon_name_id",
-            "taxon_rank_id",
-            "taxon_ancestry"
-          ],
-          "taxon_ranks": [
-            "id",
-            "rank_name"
-          ],
-          "taxon_names": [
-            "id",
-            "scientific_name",
-            "canonical_name"
-          ],
-          "vernacular_names": [
-            "taxon_concept_id",
-            "vernacular_name",
-            "language",
-            "is_primary"
-          ],
-          "taxon_media": [
-            "id",
-            "taxon_concept_id",
-            "media_type",
-            "media_role",
-            "access_uri",
-            "thumbnail_uri",
-            "creator",
-            "license"
-          ]
-        },
+        "operationId": "api01",
+        "summary": "API-01 — Búsqueda general",
+        "description": "Coincidencias por nombre científico o común, sin distinguir mayúsculas ni acentos. Orden por canonical_name e id. Sin body. Parámetros desconocidos o repetidos: 400. Requiere identidad mTLS con permiso de lectura.",
         "parameters": [
           {
-            "name": "grupo",
+            "$ref": "#/components/parameters/RequestId"
+          },
+          {
+            "name": "q",
             "in": "query",
-            "required": false,
-            "description": "Grupo de la galería. Omitir para incluir los tres grupos.",
+            "required": true,
+            "description": "Texto requerido, sin espacios extremos.",
             "schema": {
               "type": "string",
-              "enum": [
-                "animales",
-                "plantas",
-                "hongos"
-              ]
-            },
-            "example": "animales"
+              "minLength": 2,
+              "maxLength": 100
+            }
           },
           {
             "name": "page",
             "in": "query",
-            "description": "Página solicitada. Una página fuera de rango devuelve data vacío.",
+            "required": false,
+            "description": "Página; fuera de rango devuelve colección vacía.",
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -83,7 +74,8 @@
           {
             "name": "page_size",
             "in": "query",
-            "description": "Cantidad máxima de tarjetas por página.",
+            "required": false,
+            "description": "Máximo de elementos por página.",
             "schema": {
               "type": "integer",
               "minimum": 1,
@@ -93,171 +85,3687 @@
           }
         ],
         "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "403": {
+            "$ref": "#/components/responses/403"
+          },
+          "405": {
+            "$ref": "#/components/responses/405"
+          },
+          "406": {
+            "$ref": "#/components/responses/406"
+          },
+          "429": {
+            "$ref": "#/components/responses/429"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          },
+          "503": {
+            "$ref": "#/components/responses/503"
+          },
           "200": {
-            "description": "Galería obtenida. Sin coincidencias devuelve HTTP 200 con data vacío y total igual a 0.",
+            "description": "Consulta exitosa. Colecciones vacías conservan 200; recurso padre inexistente devuelve 404 cuando aplica.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "X-Request-Received-At": {
+                "$ref": "#/components/headers/X-Request-Received-At"
+              },
+              "Date": {
+                "$ref": "#/components/headers/Date"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/DescubrirResponse"
+                  "$ref": "#/components/schemas/API01Response"
                 },
                 "examples": {
-                  "conResultados": {
-                    "summary": "Datos ilustrativos; no corresponden a un registro verificado.",
+                  "conDatos": {
+                    "summary": "Ejemplo ilustrativo; no acredita registros o relaciones existentes.",
                     "value": {
                       "data": [
                         {
-                          "id": 123,
-                          "nombre_cientifico": "Panthera onca",
-                          "nombre_comun": "Jaguar",
-                          "grupo": "animales",
-                          "imagen": null
+                          "id": "4426186",
+                          "canonical_name": "Romerolagus diazi",
+                          "preferred_common_name": "Teporingo",
+                          "image": null,
+                          "species_profile": "/api/v1/especies/4426186",
+                          "distance_km": null
                         }
                       ],
-                      "pagination": {
-                        "page": 1,
-                        "page_size": 24,
-                        "total": 1,
-                        "total_pages": 1
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z",
+                        "pagination": {
+                          "page": 1,
+                          "page_size": 24,
+                          "total": 1,
+                          "total_pages": 1
+                        }
                       }
                     }
                   },
-                  "sinResultados": {
+                  "sinDatos": {
                     "value": {
                       "data": [],
-                      "pagination": {
-                        "page": 1,
-                        "page_size": 24,
-                        "total": 0,
-                        "total_pages": 0
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z",
+                        "pagination": {
+                          "page": 1,
+                          "page_size": 24,
+                          "total": 0,
+                          "total_pages": 0
+                        }
                       }
                     }
                   }
                 }
               }
             }
-          },
+          }
+        },
+        "x-database-tables": [
+          "taxon_concepts",
+          "taxon_names",
+          "vernacular_names",
+          "taxon_media",
+          "species_profiles"
+        ]
+      }
+    },
+    "/api/v1/especies/del-dia": {
+      "get": {
+        "tags": [
+          "Inicio"
+        ],
+        "operationId": "api02",
+        "summary": "API-02 — Especie del día",
+        "description": "Selección vigente con starts_at <= recepción < ends_at. 404 sin selección. Selección editorial diaria y almacenamiento por confirmar; no sustituye por selección semanal. Sin body. Parámetros desconocidos o repetidos: 400. Requiere identidad mTLS con permiso de lectura.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestId"
+          }
+        ],
+        "responses": {
           "400": {
-            "description": "Grupo inválido o parámetros de paginación fuera de los límites.",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/Error"
-                },
-                "example": {
-                  "code": "INVALID_PARAMETER",
-                  "message": "grupo debe ser animales, plantas u hongos."
-                }
-              }
-            }
+            "$ref": "#/components/responses/400"
+          },
+          "403": {
+            "$ref": "#/components/responses/403"
+          },
+          "404": {
+            "$ref": "#/components/responses/404"
+          },
+          "405": {
+            "$ref": "#/components/responses/405"
+          },
+          "406": {
+            "$ref": "#/components/responses/406"
+          },
+          "429": {
+            "$ref": "#/components/responses/429"
           },
           "500": {
-            "description": "Error interno al consultar la galería.",
+            "$ref": "#/components/responses/500"
+          },
+          "503": {
+            "$ref": "#/components/responses/503"
+          },
+          "200": {
+            "description": "Consulta exitosa. Colecciones vacías conservan 200; recurso padre inexistente devuelve 404 cuando aplica.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "X-Request-Received-At": {
+                "$ref": "#/components/headers/X-Request-Received-At"
+              },
+              "Date": {
+                "$ref": "#/components/headers/Date"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/Error"
+                  "$ref": "#/components/schemas/API02Response"
                 },
-                "example": {
-                  "code": "INTERNAL_ERROR",
-                  "message": "No fue posible obtener las especies."
+                "examples": {
+                  "conDatos": {
+                    "summary": "Ejemplo ilustrativo; no acredita registros o relaciones existentes.",
+                    "value": {
+                      "data": {
+                        "id": "29",
+                        "locale": "es-MX",
+                        "starts_at": "2026-11-04T06:00:00.000Z",
+                        "ends_at": "2026-11-05T06:00:00.000Z",
+                        "title": "Teporingo",
+                        "description": "Descubre esta especie de México.",
+                        "image": null,
+                        "taxon": {
+                          "id": "4426186",
+                          "canonical_name": "Romerolagus diazi",
+                          "preferred_common_name": "Teporingo",
+                          "rank": "species"
+                        },
+                        "links": {
+                          "self": "/api/v1/especies/del-dia",
+                          "species_profile": "/api/v1/especies/4426186"
+                        }
+                      },
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z"
+                      }
+                    }
+                  }
                 }
               }
             }
           }
-        }
+        },
+        "x-database-tables": [
+          "taxon_concepts",
+          "taxon_names",
+          "vernacular_names",
+          "taxon_media",
+          "species_profiles"
+        ]
+      }
+    },
+    "/api/v1/explorar": {
+      "get": {
+        "tags": [
+          "Explorar"
+        ],
+        "operationId": "api03",
+        "summary": "API-03 — Explorar especies",
+        "description": "Filtros combinados con AND. Orden id ascendente; radio filtra por observación válida más cercana. Sin body. Parámetros desconocidos o repetidos: 400. Requiere identidad mTLS con permiso de lectura.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestId"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Nombre común o científico; recortar espacios.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "taxon_id",
+            "in": "query",
+            "required": false,
+            "description": "Concepto y descendientes; ID inexistente devuelve lista vacía.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$",
+              "description": "Identificador decimal serializado como cadena para evitar pérdida de precisión."
+            }
+          },
+          {
+            "name": "reino",
+            "in": "query",
+            "required": false,
+            "description": "Reino taxonómico.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Animalia",
+                "Plantae",
+                "Fungi"
+              ]
+            }
+          },
+          {
+            "name": "riesgo",
+            "in": "query",
+            "required": false,
+            "description": "true: riesgo documentado; false: ausencia documentada. Excluye desconocidos.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "endemica",
+            "in": "query",
+            "required": false,
+            "description": "Endemismo documentado en México; excluye desconocidos al filtrar.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "lat",
+            "in": "query",
+            "required": false,
+            "description": "Latitud; se requiere lng conjuntamente.",
+            "schema": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            }
+          },
+          {
+            "name": "lng",
+            "in": "query",
+            "required": false,
+            "description": "Longitud; se requiere lat conjuntamente.",
+            "schema": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            }
+          },
+          {
+            "name": "radio_km",
+            "in": "query",
+            "required": false,
+            "description": "Radio; requiere lat y lng.",
+            "schema": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 500,
+              "default": 100
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Página; fuera de rango devuelve colección vacía.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "description": "Máximo de elementos por página.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 24
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "403": {
+            "$ref": "#/components/responses/403"
+          },
+          "405": {
+            "$ref": "#/components/responses/405"
+          },
+          "406": {
+            "$ref": "#/components/responses/406"
+          },
+          "429": {
+            "$ref": "#/components/responses/429"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          },
+          "503": {
+            "$ref": "#/components/responses/503"
+          },
+          "200": {
+            "description": "Consulta exitosa. Colecciones vacías conservan 200; recurso padre inexistente devuelve 404 cuando aplica.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "X-Request-Received-At": {
+                "$ref": "#/components/headers/X-Request-Received-At"
+              },
+              "Date": {
+                "$ref": "#/components/headers/Date"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/API03Response"
+                },
+                "examples": {
+                  "conDatos": {
+                    "summary": "Ejemplo ilustrativo; no acredita registros o relaciones existentes.",
+                    "value": {
+                      "data": [
+                        {
+                          "id": "4426186",
+                          "canonical_name": "Romerolagus diazi",
+                          "preferred_common_name": "Teporingo",
+                          "image": null,
+                          "species_profile": "/api/v1/especies/4426186",
+                          "distance_km": null
+                        }
+                      ],
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z",
+                        "pagination": {
+                          "page": 1,
+                          "page_size": 24,
+                          "total": 1,
+                          "total_pages": 1
+                        }
+                      }
+                    }
+                  },
+                  "sinDatos": {
+                    "value": {
+                      "data": [],
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z",
+                        "pagination": {
+                          "page": 1,
+                          "page_size": 24,
+                          "total": 0,
+                          "total_pages": 0
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-database-tables": [
+          "taxon_concepts",
+          "taxon_names",
+          "vernacular_names",
+          "taxon_media",
+          "taxon_ranks",
+          "species_profiles",
+          "observations"
+        ]
+      }
+    },
+    "/api/v1/explorar/filtros": {
+      "get": {
+        "tags": [
+          "Explorar"
+        ],
+        "operationId": "api04",
+        "summary": "API-04 — Opciones de filtros",
+        "description": "Devuelve opciones disponibles, listas vacías para categorías sin datos. Códigos de riesgo y endemismo pendientes de validar. Sin body. Parámetros desconocidos o repetidos: 400. Requiere identidad mTLS con permiso de lectura.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestId"
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "403": {
+            "$ref": "#/components/responses/403"
+          },
+          "405": {
+            "$ref": "#/components/responses/405"
+          },
+          "406": {
+            "$ref": "#/components/responses/406"
+          },
+          "429": {
+            "$ref": "#/components/responses/429"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          },
+          "503": {
+            "$ref": "#/components/responses/503"
+          },
+          "200": {
+            "description": "Consulta exitosa. Colecciones vacías conservan 200; recurso padre inexistente devuelve 404 cuando aplica.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "X-Request-Received-At": {
+                "$ref": "#/components/headers/X-Request-Received-At"
+              },
+              "Date": {
+                "$ref": "#/components/headers/Date"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/API04Response"
+                },
+                "examples": {
+                  "conDatos": {
+                    "summary": "Ejemplo ilustrativo; no acredita registros o relaciones existentes.",
+                    "value": {
+                      "data": {
+                        "reinos": [
+                          {
+                            "value": "Animalia",
+                            "label": "Animales"
+                          }
+                        ],
+                        "rangos": [],
+                        "riesgo": [],
+                        "endemismo": [],
+                        "usos": [],
+                        "distribucion": []
+                      },
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-database-tables": [
+          "taxon_ranks",
+          "taxon_concepts",
+          "species_uses"
+        ]
+      }
+    },
+    "/api/v1/explorar/mapa": {
+      "get": {
+        "tags": [
+          "Explorar"
+        ],
+        "operationId": "api05",
+        "summary": "API-05 — Mapa de exploración",
+        "description": "GeoJSON WGS84 dentro de data, paginado por feature e id estable. No truncar silenciosamente. Solo geometrías publicables; distribución requiere tabla propuesta. Sin body. Parámetros desconocidos o repetidos: 400. Requiere identidad mTLS con permiso de lectura.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestId"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Nombre común o científico; recortar espacios.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "taxon_id",
+            "in": "query",
+            "required": false,
+            "description": "Concepto y descendientes; ID inexistente devuelve lista vacía.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$",
+              "description": "Identificador decimal serializado como cadena para evitar pérdida de precisión."
+            }
+          },
+          {
+            "name": "reino",
+            "in": "query",
+            "required": false,
+            "description": "Reino taxonómico.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Animalia",
+                "Plantae",
+                "Fungi"
+              ]
+            }
+          },
+          {
+            "name": "riesgo",
+            "in": "query",
+            "required": false,
+            "description": "true: riesgo documentado; false: ausencia documentada. Excluye desconocidos.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "endemica",
+            "in": "query",
+            "required": false,
+            "description": "Endemismo documentado en México; excluye desconocidos al filtrar.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "bbox",
+            "in": "query",
+            "required": true,
+            "description": "west,south,east,north en WGS84. -180 <= west < east <= 180; -90 <= south < north <= 90. Sin cruce del antimeridiano; dividir en dos consultas.",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 4,
+              "maxItems": 4
+            },
+            "style": "form",
+            "explode": false
+          },
+          {
+            "name": "capa",
+            "in": "query",
+            "required": false,
+            "description": "Capa solicitada.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "observaciones",
+                "distribucion"
+              ],
+              "default": "observaciones"
+            }
+          },
+          {
+            "name": "zoom",
+            "in": "query",
+            "required": false,
+            "description": "Nivel de visualización; esta versión devuelve geometrías sin clustering.",
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 22,
+              "default": 8
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Página; fuera de rango devuelve colección vacía.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "description": "Máximo de elementos por página.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 24
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "403": {
+            "$ref": "#/components/responses/403"
+          },
+          "405": {
+            "$ref": "#/components/responses/405"
+          },
+          "406": {
+            "$ref": "#/components/responses/406"
+          },
+          "429": {
+            "$ref": "#/components/responses/429"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          },
+          "503": {
+            "$ref": "#/components/responses/503"
+          },
+          "200": {
+            "description": "Consulta exitosa. Colecciones vacías conservan 200; recurso padre inexistente devuelve 404 cuando aplica.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "X-Request-Received-At": {
+                "$ref": "#/components/headers/X-Request-Received-At"
+              },
+              "Date": {
+                "$ref": "#/components/headers/Date"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/API05Response"
+                },
+                "examples": {
+                  "conDatos": {
+                    "summary": "Ejemplo ilustrativo; no acredita registros o relaciones existentes.",
+                    "value": {
+                      "data": {
+                        "type": "FeatureCollection",
+                        "features": [
+                          {
+                            "type": "Feature",
+                            "id": "observation:1",
+                            "geometry": {
+                              "type": "Point",
+                              "coordinates": [
+                                -99.13,
+                                19.43
+                              ]
+                            },
+                            "properties": {
+                              "taxon_id": "4426186",
+                              "kind": "observation",
+                              "distribution_type": null,
+                              "quality_grade": "research",
+                              "event_date": "2026-11-05T02:30:00.000Z",
+                              "coordinate_uncertainty_m": 100,
+                              "source_id": null,
+                              "confidence_level": null
+                            }
+                          }
+                        ]
+                      },
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z",
+                        "pagination": {
+                          "page": 1,
+                          "page_size": 24,
+                          "total": 1,
+                          "total_pages": 1
+                        }
+                      }
+                    }
+                  },
+                  "sinDatos": {
+                    "value": {
+                      "data": {
+                        "type": "FeatureCollection",
+                        "features": []
+                      },
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z",
+                        "pagination": {
+                          "page": 1,
+                          "page_size": 24,
+                          "total": 0,
+                          "total_pages": 0
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-database-tables": [
+          "observations",
+          "taxon_concepts",
+          "taxon_distributions"
+        ]
+      }
+    },
+    "/api/v1/patrimonio": {
+      "get": {
+        "tags": [
+          "Patrimonio"
+        ],
+        "operationId": "api06",
+        "summary": "API-06 — Patrimonio biocultural",
+        "description": "Una tarjeta por especie con uso documentado; orden por id. Sin body. Parámetros desconocidos o repetidos: 400. Requiere identidad mTLS con permiso de lectura.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestId"
+          },
+          {
+            "name": "uso",
+            "in": "query",
+            "required": false,
+            "description": "Categoría obtenida de filtros.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Página; fuera de rango devuelve colección vacía.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "description": "Máximo de elementos por página.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 24
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "403": {
+            "$ref": "#/components/responses/403"
+          },
+          "405": {
+            "$ref": "#/components/responses/405"
+          },
+          "406": {
+            "$ref": "#/components/responses/406"
+          },
+          "429": {
+            "$ref": "#/components/responses/429"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          },
+          "503": {
+            "$ref": "#/components/responses/503"
+          },
+          "200": {
+            "description": "Consulta exitosa. Colecciones vacías conservan 200; recurso padre inexistente devuelve 404 cuando aplica.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "X-Request-Received-At": {
+                "$ref": "#/components/headers/X-Request-Received-At"
+              },
+              "Date": {
+                "$ref": "#/components/headers/Date"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/API06Response"
+                },
+                "examples": {
+                  "conDatos": {
+                    "summary": "Ejemplo ilustrativo; no acredita registros o relaciones existentes.",
+                    "value": {
+                      "data": [
+                        {
+                          "id": "4426186",
+                          "canonical_name": "Romerolagus diazi",
+                          "preferred_common_name": "Teporingo",
+                          "image": null,
+                          "species_profile": "/api/v1/especies/4426186",
+                          "distance_km": null
+                        }
+                      ],
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z",
+                        "pagination": {
+                          "page": 1,
+                          "page_size": 24,
+                          "total": 1,
+                          "total_pages": 1
+                        }
+                      }
+                    }
+                  },
+                  "sinDatos": {
+                    "value": {
+                      "data": [],
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z",
+                        "pagination": {
+                          "page": 1,
+                          "page_size": 24,
+                          "total": 0,
+                          "total_pages": 0
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-database-tables": [
+          "taxon_concepts",
+          "taxon_names",
+          "vernacular_names",
+          "taxon_media",
+          "species_uses",
+          "species_profiles"
+        ]
+      }
+    },
+    "/api/v1/descubrir": {
+      "get": {
+        "tags": [
+          "Descubrir"
+        ],
+        "operationId": "api07",
+        "summary": "API-07 — Descubrir especies",
+        "description": "Galería de rango especie. Grupo por ascendencia exacta a Animalia, Plantae o Fungi; orden id ascendente. Sin body. Parámetros desconocidos o repetidos: 400. Requiere identidad mTLS con permiso de lectura.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestId"
+          },
+          {
+            "name": "grupo",
+            "in": "query",
+            "required": false,
+            "description": "Omitir para incluir los tres grupos.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "animales",
+                "plantas",
+                "hongos"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Página; fuera de rango devuelve colección vacía.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "description": "Máximo de elementos por página.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 24
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "403": {
+            "$ref": "#/components/responses/403"
+          },
+          "405": {
+            "$ref": "#/components/responses/405"
+          },
+          "406": {
+            "$ref": "#/components/responses/406"
+          },
+          "429": {
+            "$ref": "#/components/responses/429"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          },
+          "503": {
+            "$ref": "#/components/responses/503"
+          },
+          "200": {
+            "description": "Consulta exitosa. Colecciones vacías conservan 200; recurso padre inexistente devuelve 404 cuando aplica.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "X-Request-Received-At": {
+                "$ref": "#/components/headers/X-Request-Received-At"
+              },
+              "Date": {
+                "$ref": "#/components/headers/Date"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/API07Response"
+                },
+                "examples": {
+                  "conDatos": {
+                    "summary": "Ejemplo ilustrativo; no acredita registros o relaciones existentes.",
+                    "value": {
+                      "data": [
+                        {
+                          "id": "4426186",
+                          "canonical_name": "Romerolagus diazi",
+                          "preferred_common_name": "Teporingo",
+                          "image": null,
+                          "species_profile": "/api/v1/especies/4426186",
+                          "distance_km": null
+                        }
+                      ],
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z",
+                        "pagination": {
+                          "page": 1,
+                          "page_size": 24,
+                          "total": 1,
+                          "total_pages": 1
+                        }
+                      }
+                    }
+                  },
+                  "sinDatos": {
+                    "value": {
+                      "data": [],
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z",
+                        "pagination": {
+                          "page": 1,
+                          "page_size": 24,
+                          "total": 0,
+                          "total_pages": 0
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-database-tables": [
+          "taxon_concepts",
+          "taxon_names",
+          "vernacular_names",
+          "taxon_media",
+          "taxon_ranks"
+        ]
+      }
+    },
+    "/api/v1/especies/aleatorias": {
+      "get": {
+        "tags": [
+          "Descubrir"
+        ],
+        "operationId": "api08",
+        "summary": "API-08 — Especies aleatorias",
+        "description": "Sin duplicados. La semilla usada, generada si falta, se devuelve en meta.seed. Reproducibilidad para el mismo conjunto publicado. Sin body. Parámetros desconocidos o repetidos: 400. Requiere identidad mTLS con permiso de lectura.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestId"
+          },
+          {
+            "name": "reino",
+            "in": "query",
+            "required": false,
+            "description": "Reino taxonómico.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Animalia",
+                "Plantae",
+                "Fungi"
+              ]
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Máximo de resultados.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "seed",
+            "in": "query",
+            "required": false,
+            "description": "Semilla; mismo conjunto de datos y semilla producen el mismo orden.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "403": {
+            "$ref": "#/components/responses/403"
+          },
+          "405": {
+            "$ref": "#/components/responses/405"
+          },
+          "406": {
+            "$ref": "#/components/responses/406"
+          },
+          "429": {
+            "$ref": "#/components/responses/429"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          },
+          "503": {
+            "$ref": "#/components/responses/503"
+          },
+          "200": {
+            "description": "Consulta exitosa. Colecciones vacías conservan 200; recurso padre inexistente devuelve 404 cuando aplica.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "X-Request-Received-At": {
+                "$ref": "#/components/headers/X-Request-Received-At"
+              },
+              "Date": {
+                "$ref": "#/components/headers/Date"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/API08Response"
+                },
+                "examples": {
+                  "conDatos": {
+                    "summary": "Ejemplo ilustrativo; no acredita registros o relaciones existentes.",
+                    "value": {
+                      "data": [
+                        {
+                          "id": "4426186",
+                          "canonical_name": "Romerolagus diazi",
+                          "preferred_common_name": "Teporingo",
+                          "image": null,
+                          "species_profile": "/api/v1/especies/4426186",
+                          "distance_km": null
+                        }
+                      ],
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z",
+                        "seed": "ejemplo"
+                      }
+                    }
+                  },
+                  "sinDatos": {
+                    "value": {
+                      "data": [],
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z",
+                        "seed": "ejemplo"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-database-tables": [
+          "taxon_concepts",
+          "taxon_names",
+          "vernacular_names",
+          "taxon_media",
+          "species_profiles"
+        ]
+      }
+    },
+    "/api/v1/especies/listado": {
+      "get": {
+        "tags": [
+          "Explorar"
+        ],
+        "operationId": "api09",
+        "summary": "API-09 — Listado completo (Ver +)",
+        "description": "Agrupar por especie y ordenar antes de paginar; distancia mínima de observaciones permitidas. distance_asc sin coordenadas usa id_asc e informa meta.sort. Empates por id; sin observaciones al final con distancia null. random requiere seed. Sin body. Parámetros desconocidos o repetidos: 400. Requiere identidad mTLS con permiso de lectura.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestId"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "description": "Nombre común o científico; recortar espacios.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            }
+          },
+          {
+            "name": "taxon_id",
+            "in": "query",
+            "required": false,
+            "description": "Concepto y descendientes; ID inexistente devuelve lista vacía.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$",
+              "description": "Identificador decimal serializado como cadena para evitar pérdida de precisión."
+            }
+          },
+          {
+            "name": "reino",
+            "in": "query",
+            "required": false,
+            "description": "Reino taxonómico.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "Animalia",
+                "Plantae",
+                "Fungi"
+              ]
+            }
+          },
+          {
+            "name": "riesgo",
+            "in": "query",
+            "required": false,
+            "description": "true: riesgo documentado; false: ausencia documentada. Excluye desconocidos.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "endemica",
+            "in": "query",
+            "required": false,
+            "description": "Endemismo documentado en México; excluye desconocidos al filtrar.",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "lat",
+            "in": "query",
+            "required": false,
+            "description": "Latitud; se requiere lng conjuntamente.",
+            "schema": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            }
+          },
+          {
+            "name": "lng",
+            "in": "query",
+            "required": false,
+            "description": "Longitud; se requiere lat conjuntamente.",
+            "schema": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            }
+          },
+          {
+            "name": "radio_km",
+            "in": "query",
+            "required": false,
+            "description": "Radio; requiere lat y lng.",
+            "schema": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 500,
+              "default": 100
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Página; fuera de rango devuelve colección vacía.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Máximo de resultados.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "required": false,
+            "description": "Orden solicitado; efectivo en meta.sort.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "id_asc",
+                "name_asc",
+                "distance_asc",
+                "random"
+              ],
+              "default": "id_asc"
+            }
+          },
+          {
+            "name": "seed",
+            "in": "query",
+            "required": false,
+            "description": "Semilla; mismo conjunto de datos y semilla producen el mismo orden.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 64
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "403": {
+            "$ref": "#/components/responses/403"
+          },
+          "405": {
+            "$ref": "#/components/responses/405"
+          },
+          "406": {
+            "$ref": "#/components/responses/406"
+          },
+          "429": {
+            "$ref": "#/components/responses/429"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          },
+          "503": {
+            "$ref": "#/components/responses/503"
+          },
+          "200": {
+            "description": "Consulta exitosa. Colecciones vacías conservan 200; recurso padre inexistente devuelve 404 cuando aplica.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "X-Request-Received-At": {
+                "$ref": "#/components/headers/X-Request-Received-At"
+              },
+              "Date": {
+                "$ref": "#/components/headers/Date"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/API09Response"
+                },
+                "examples": {
+                  "conDatos": {
+                    "summary": "Ejemplo ilustrativo; no acredita registros o relaciones existentes.",
+                    "value": {
+                      "data": [
+                        {
+                          "id": "4426186",
+                          "canonical_name": "Romerolagus diazi",
+                          "preferred_common_name": "Teporingo",
+                          "image": null,
+                          "species_profile": "/api/v1/especies/4426186",
+                          "distance_km": null
+                        }
+                      ],
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z",
+                        "pagination": {
+                          "page": 1,
+                          "page_size": 20,
+                          "total": 1,
+                          "total_pages": 1
+                        },
+                        "sort": "id_asc",
+                        "seed": null
+                      }
+                    }
+                  },
+                  "sinDatos": {
+                    "value": {
+                      "data": [],
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z",
+                        "pagination": {
+                          "page": 1,
+                          "page_size": 20,
+                          "total": 0,
+                          "total_pages": 0
+                        },
+                        "sort": "id_asc",
+                        "seed": null
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-database-tables": [
+          "taxon_concepts",
+          "taxon_names",
+          "vernacular_names",
+          "taxon_media",
+          "species_profiles",
+          "observations"
+        ]
+      }
+    },
+    "/api/v1/especies/{id}": {
+      "get": {
+        "tags": [
+          "Ficha"
+        ],
+        "operationId": "api10",
+        "summary": "API-10 — Ficha de especie",
+        "description": "id identifica taxon_concepts, no species_profiles. 404 si no hay concepto publicable. Ficha ausente: profile_id null; título científico y textos null. Sin body. Parámetros desconocidos o repetidos: 400. Requiere identidad mTLS con permiso de lectura.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestId"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador de taxon_concepts.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$",
+              "description": "Identificador decimal serializado como cadena para evitar pérdida de precisión."
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "403": {
+            "$ref": "#/components/responses/403"
+          },
+          "404": {
+            "$ref": "#/components/responses/404"
+          },
+          "405": {
+            "$ref": "#/components/responses/405"
+          },
+          "406": {
+            "$ref": "#/components/responses/406"
+          },
+          "429": {
+            "$ref": "#/components/responses/429"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          },
+          "503": {
+            "$ref": "#/components/responses/503"
+          },
+          "200": {
+            "description": "Consulta exitosa. Colecciones vacías conservan 200; recurso padre inexistente devuelve 404 cuando aplica.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "X-Request-Received-At": {
+                "$ref": "#/components/headers/X-Request-Received-At"
+              },
+              "Date": {
+                "$ref": "#/components/headers/Date"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/API10Response"
+                },
+                "examples": {
+                  "conDatos": {
+                    "summary": "Ejemplo ilustrativo; no acredita registros o relaciones existentes.",
+                    "value": {
+                      "data": {
+                        "taxon": {
+                          "id": "4426186",
+                          "canonical_name": "Romerolagus diazi",
+                          "preferred_common_name": "Teporingo",
+                          "rank": "species"
+                        },
+                        "profile_id": "456",
+                        "title": "Teporingo",
+                        "short_description": "Ejemplo ilustrativo.",
+                        "full_description": null,
+                        "scientific_name_authorship": null,
+                        "taxonomic_status": "accepted",
+                        "image": null
+                      },
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-database-tables": [
+          "taxon_concepts",
+          "taxon_names",
+          "vernacular_names",
+          "taxon_media",
+          "species_profiles"
+        ]
+      }
+    },
+    "/api/v1/especies/{id}/secciones": {
+      "get": {
+        "tags": [
+          "Ficha"
+        ],
+        "operationId": "api11",
+        "summary": "API-11 — Secciones descriptivas",
+        "description": "Apartados disponibles, orden por key. Estructura de sections por confirmar. Sin body. Parámetros desconocidos o repetidos: 400. Requiere identidad mTLS con permiso de lectura.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestId"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Página; fuera de rango devuelve colección vacía.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "description": "Máximo de elementos por página.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 24
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador de taxon_concepts.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$",
+              "description": "Identificador decimal serializado como cadena para evitar pérdida de precisión."
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "403": {
+            "$ref": "#/components/responses/403"
+          },
+          "404": {
+            "$ref": "#/components/responses/404"
+          },
+          "405": {
+            "$ref": "#/components/responses/405"
+          },
+          "406": {
+            "$ref": "#/components/responses/406"
+          },
+          "429": {
+            "$ref": "#/components/responses/429"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          },
+          "503": {
+            "$ref": "#/components/responses/503"
+          },
+          "200": {
+            "description": "Consulta exitosa. Colecciones vacías conservan 200; recurso padre inexistente devuelve 404 cuando aplica.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "X-Request-Received-At": {
+                "$ref": "#/components/headers/X-Request-Received-At"
+              },
+              "Date": {
+                "$ref": "#/components/headers/Date"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/API11Response"
+                },
+                "examples": {
+                  "conDatos": {
+                    "summary": "Ejemplo ilustrativo; no acredita registros o relaciones existentes.",
+                    "value": {
+                      "data": [
+                        {
+                          "key": "habitat",
+                          "title": "Hábitat",
+                          "content": "Contenido ilustrativo pendiente de fuente."
+                        }
+                      ],
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z",
+                        "pagination": {
+                          "page": 1,
+                          "page_size": 24,
+                          "total": 1,
+                          "total_pages": 1
+                        }
+                      }
+                    }
+                  },
+                  "sinDatos": {
+                    "value": {
+                      "data": [],
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z",
+                        "pagination": {
+                          "page": 1,
+                          "page_size": 24,
+                          "total": 0,
+                          "total_pages": 0
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-database-tables": [
+          "species_profiles",
+          "taxon_concepts"
+        ]
+      }
+    },
+    "/api/v1/especies/{id}/distribucion": {
+      "get": {
+        "tags": [
+          "Geografía"
+        ],
+        "operationId": "api12",
+        "summary": "API-12 — Distribución geográfica",
+        "description": "Solo Polygon/MultiPolygon validados y publicados. Nunca inferir distribución de puntos. Tabla y procedencia pendientes; servicio sin datos cargados devuelve colección vacía, dependencia caída 503. Sin body. Parámetros desconocidos o repetidos: 400. Requiere identidad mTLS con permiso de lectura.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestId"
+          },
+          {
+            "name": "bbox",
+            "in": "query",
+            "required": false,
+            "description": "west,south,east,north en WGS84. -180 <= west < east <= 180; -90 <= south < north <= 90. Sin cruce del antimeridiano; dividir en dos consultas.",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 4,
+              "maxItems": 4
+            },
+            "style": "form",
+            "explode": false
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "description": "Tipo de distribución.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "conocida",
+                "estimada",
+                "potencial"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Página; fuera de rango devuelve colección vacía.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "description": "Máximo de elementos por página.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 24
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador de taxon_concepts.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$",
+              "description": "Identificador decimal serializado como cadena para evitar pérdida de precisión."
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "403": {
+            "$ref": "#/components/responses/403"
+          },
+          "404": {
+            "$ref": "#/components/responses/404"
+          },
+          "405": {
+            "$ref": "#/components/responses/405"
+          },
+          "406": {
+            "$ref": "#/components/responses/406"
+          },
+          "429": {
+            "$ref": "#/components/responses/429"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          },
+          "503": {
+            "$ref": "#/components/responses/503"
+          },
+          "200": {
+            "description": "Consulta exitosa. Colecciones vacías conservan 200; recurso padre inexistente devuelve 404 cuando aplica.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "X-Request-Received-At": {
+                "$ref": "#/components/headers/X-Request-Received-At"
+              },
+              "Date": {
+                "$ref": "#/components/headers/Date"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/API12Response"
+                },
+                "examples": {
+                  "conDatos": {
+                    "summary": "Ejemplo ilustrativo; no acredita registros o relaciones existentes.",
+                    "value": {
+                      "data": {
+                        "type": "FeatureCollection",
+                        "features": [
+                          {
+                            "type": "Feature",
+                            "id": "distribution:1",
+                            "geometry": {
+                              "type": "Polygon",
+                              "coordinates": [
+                                [
+                                  [
+                                    -99.2,
+                                    19.4
+                                  ],
+                                  [
+                                    -99.1,
+                                    19.4
+                                  ],
+                                  [
+                                    -99.1,
+                                    19.5
+                                  ],
+                                  [
+                                    -99.2,
+                                    19.4
+                                  ]
+                                ]
+                              ]
+                            },
+                            "properties": {
+                              "taxon_id": "4426186",
+                              "kind": "distribution",
+                              "distribution_type": "conocida",
+                              "quality_grade": null,
+                              "event_date": null,
+                              "coordinate_uncertainty_m": null,
+                              "source_id": null,
+                              "confidence_level": null
+                            }
+                          }
+                        ]
+                      },
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z",
+                        "pagination": {
+                          "page": 1,
+                          "page_size": 24,
+                          "total": 1,
+                          "total_pages": 1
+                        }
+                      }
+                    }
+                  },
+                  "sinDatos": {
+                    "value": {
+                      "data": {
+                        "type": "FeatureCollection",
+                        "features": []
+                      },
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z",
+                        "pagination": {
+                          "page": 1,
+                          "page_size": 24,
+                          "total": 0,
+                          "total_pages": 0
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-database-tables": [
+          "taxon_distributions"
+        ]
+      }
+    },
+    "/api/v1/especies/{id}/usos": {
+      "get": {
+        "tags": [
+          "Ficha"
+        ],
+        "operationId": "api13",
+        "summary": "API-13 — Usos de especie",
+        "description": "Usos documentados, orden por id; conservar procedencia de evidencia. Sin body. Parámetros desconocidos o repetidos: 400. Requiere identidad mTLS con permiso de lectura.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestId"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Página; fuera de rango devuelve colección vacía.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "description": "Máximo de elementos por página.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 24
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador de taxon_concepts.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$",
+              "description": "Identificador decimal serializado como cadena para evitar pérdida de precisión."
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "403": {
+            "$ref": "#/components/responses/403"
+          },
+          "404": {
+            "$ref": "#/components/responses/404"
+          },
+          "405": {
+            "$ref": "#/components/responses/405"
+          },
+          "406": {
+            "$ref": "#/components/responses/406"
+          },
+          "429": {
+            "$ref": "#/components/responses/429"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          },
+          "503": {
+            "$ref": "#/components/responses/503"
+          },
+          "200": {
+            "description": "Consulta exitosa. Colecciones vacías conservan 200; recurso padre inexistente devuelve 404 cuando aplica.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "X-Request-Received-At": {
+                "$ref": "#/components/headers/X-Request-Received-At"
+              },
+              "Date": {
+                "$ref": "#/components/headers/Date"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/API13Response"
+                },
+                "examples": {
+                  "conDatos": {
+                    "summary": "Ejemplo ilustrativo; no acredita registros o relaciones existentes.",
+                    "value": {
+                      "data": [
+                        {
+                          "id": "1",
+                          "category": "cultural",
+                          "subcategory": null,
+                          "part_used": null,
+                          "preparation": null,
+                          "cultural_context": "Ejemplo ilustrativo.",
+                          "evidence_type": null,
+                          "remarks": null
+                        }
+                      ],
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z",
+                        "pagination": {
+                          "page": 1,
+                          "page_size": 24,
+                          "total": 1,
+                          "total_pages": 1
+                        }
+                      }
+                    }
+                  },
+                  "sinDatos": {
+                    "value": {
+                      "data": [],
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z",
+                        "pagination": {
+                          "page": 1,
+                          "page_size": 24,
+                          "total": 0,
+                          "total_pages": 0
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-database-tables": [
+          "species_uses"
+        ]
+      }
+    },
+    "/api/v1/especies/{id}/taxonomia": {
+      "get": {
+        "tags": [
+          "Ficha"
+        ],
+        "operationId": "api14",
+        "summary": "API-14 — Taxonomía",
+        "description": "Ancestros ordenados desde raíz hasta el concepto incluido, sin paginación. No asumir formato textual de ancestry. Sin body. Parámetros desconocidos o repetidos: 400. Requiere identidad mTLS con permiso de lectura.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestId"
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador de taxon_concepts.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$",
+              "description": "Identificador decimal serializado como cadena para evitar pérdida de precisión."
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "403": {
+            "$ref": "#/components/responses/403"
+          },
+          "404": {
+            "$ref": "#/components/responses/404"
+          },
+          "405": {
+            "$ref": "#/components/responses/405"
+          },
+          "406": {
+            "$ref": "#/components/responses/406"
+          },
+          "429": {
+            "$ref": "#/components/responses/429"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          },
+          "503": {
+            "$ref": "#/components/responses/503"
+          },
+          "200": {
+            "description": "Consulta exitosa. Colecciones vacías conservan 200; recurso padre inexistente devuelve 404 cuando aplica.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "X-Request-Received-At": {
+                "$ref": "#/components/headers/X-Request-Received-At"
+              },
+              "Date": {
+                "$ref": "#/components/headers/Date"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/API14Response"
+                },
+                "examples": {
+                  "conDatos": {
+                    "summary": "Ejemplo ilustrativo; no acredita registros o relaciones existentes.",
+                    "value": {
+                      "data": [
+                        {
+                          "id": "4426186",
+                          "canonical_name": "Romerolagus diazi",
+                          "preferred_common_name": "Teporingo",
+                          "rank": "species"
+                        }
+                      ],
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z"
+                      }
+                    }
+                  },
+                  "sinDatos": {
+                    "value": {
+                      "data": [],
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-database-tables": [
+          "taxon_concepts",
+          "taxon_ranks",
+          "taxon_names",
+          "vernacular_names"
+        ]
+      }
+    },
+    "/api/v1/especies/{id}/multimedia": {
+      "get": {
+        "tags": [
+          "Ficha"
+        ],
+        "operationId": "api15",
+        "summary": "API-15 — Multimedia",
+        "description": "Solo medios autorizados para publicación. Identidad compuesta origin e id; orden origin,id. No asegurar disponibilidad de audio o video. Sin body. Parámetros desconocidos o repetidos: 400. Requiere identidad mTLS con permiso de lectura.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestId"
+          },
+          {
+            "name": "tipo",
+            "in": "query",
+            "required": false,
+            "description": "Tipo de medio.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "image",
+                "audio",
+                "video"
+              ]
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Página; fuera de rango devuelve colección vacía.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "description": "Máximo de elementos por página.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 24
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador de taxon_concepts.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$",
+              "description": "Identificador decimal serializado como cadena para evitar pérdida de precisión."
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "403": {
+            "$ref": "#/components/responses/403"
+          },
+          "404": {
+            "$ref": "#/components/responses/404"
+          },
+          "405": {
+            "$ref": "#/components/responses/405"
+          },
+          "406": {
+            "$ref": "#/components/responses/406"
+          },
+          "429": {
+            "$ref": "#/components/responses/429"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          },
+          "503": {
+            "$ref": "#/components/responses/503"
+          },
+          "200": {
+            "description": "Consulta exitosa. Colecciones vacías conservan 200; recurso padre inexistente devuelve 404 cuando aplica.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "X-Request-Received-At": {
+                "$ref": "#/components/headers/X-Request-Received-At"
+              },
+              "Date": {
+                "$ref": "#/components/headers/Date"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/API15Response"
+                },
+                "examples": {
+                  "conDatos": {
+                    "summary": "Ejemplo ilustrativo; no acredita registros o relaciones existentes.",
+                    "value": {
+                      "data": [
+                        {
+                          "id": "1",
+                          "origin": "taxon_media",
+                          "media_type": "image",
+                          "url": "https://example.org/media/1.jpg",
+                          "thumbnail_url": null,
+                          "credit": "Autor de ejemplo",
+                          "license": "CC-BY-4.0"
+                        }
+                      ],
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z",
+                        "pagination": {
+                          "page": 1,
+                          "page_size": 24,
+                          "total": 1,
+                          "total_pages": 1
+                        }
+                      }
+                    }
+                  },
+                  "sinDatos": {
+                    "value": {
+                      "data": [],
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z",
+                        "pagination": {
+                          "page": 1,
+                          "page_size": 24,
+                          "total": 0,
+                          "total_pages": 0
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-database-tables": [
+          "taxon_media",
+          "observation_media",
+          "observations"
+        ]
+      }
+    },
+    "/api/v1/especies/{id}/interacciones": {
+      "get": {
+        "tags": [
+          "Ficha"
+        ],
+        "operationId": "api16",
+        "summary": "API-16 — Interacciones ecológicas",
+        "description": "Incluir relaciones como sujeto u objeto, preservando dirección; orden id. Sin body. Parámetros desconocidos o repetidos: 400. Requiere identidad mTLS con permiso de lectura.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestId"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Página; fuera de rango devuelve colección vacía.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "description": "Máximo de elementos por página.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 24
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador de taxon_concepts.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$",
+              "description": "Identificador decimal serializado como cadena para evitar pérdida de precisión."
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "403": {
+            "$ref": "#/components/responses/403"
+          },
+          "404": {
+            "$ref": "#/components/responses/404"
+          },
+          "405": {
+            "$ref": "#/components/responses/405"
+          },
+          "406": {
+            "$ref": "#/components/responses/406"
+          },
+          "429": {
+            "$ref": "#/components/responses/429"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          },
+          "503": {
+            "$ref": "#/components/responses/503"
+          },
+          "200": {
+            "description": "Consulta exitosa. Colecciones vacías conservan 200; recurso padre inexistente devuelve 404 cuando aplica.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "X-Request-Received-At": {
+                "$ref": "#/components/headers/X-Request-Received-At"
+              },
+              "Date": {
+                "$ref": "#/components/headers/Date"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/API16Response"
+                },
+                "examples": {
+                  "conDatos": {
+                    "summary": "Ejemplo ilustrativo; no acredita registros o relaciones existentes.",
+                    "value": {
+                      "data": [
+                        {
+                          "id": "1",
+                          "subject": {
+                            "id": "4426186",
+                            "canonical_name": "Romerolagus diazi",
+                            "preferred_common_name": "Teporingo",
+                            "rank": "species"
+                          },
+                          "object": {
+                            "id": "2",
+                            "canonical_name": "Taxón ilustrativo",
+                            "preferred_common_name": "Teporingo",
+                            "rank": "species"
+                          },
+                          "interaction_type": "herbivoria",
+                          "direction": null,
+                          "remarks": "Relación ilustrativa, no verificada."
+                        }
+                      ],
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z",
+                        "pagination": {
+                          "page": 1,
+                          "page_size": 24,
+                          "total": 1,
+                          "total_pages": 1
+                        }
+                      }
+                    }
+                  },
+                  "sinDatos": {
+                    "value": {
+                      "data": [],
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z",
+                        "pagination": {
+                          "page": 1,
+                          "page_size": 24,
+                          "total": 0,
+                          "total_pages": 0
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-database-tables": [
+          "taxon_interactions",
+          "taxon_concepts",
+          "taxon_names",
+          "taxon_ranks",
+          "vernacular_names"
+        ]
+      }
+    },
+    "/api/v1/especies/{id}/referencias": {
+      "get": {
+        "tags": [
+          "Ficha"
+        ],
+        "operationId": "api17",
+        "summary": "API-17 — Referencias científicas",
+        "description": "Normalizar fuentes en registros distinguibles por kind e id, ordenar por ambos; no inventar URL de fuente. Sin body. Parámetros desconocidos o repetidos: 400. Requiere identidad mTLS con permiso de lectura.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestId"
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Página; fuera de rango devuelve colección vacía.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "description": "Máximo de elementos por página.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 24
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador de taxon_concepts.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$",
+              "description": "Identificador decimal serializado como cadena para evitar pérdida de precisión."
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "403": {
+            "$ref": "#/components/responses/403"
+          },
+          "404": {
+            "$ref": "#/components/responses/404"
+          },
+          "405": {
+            "$ref": "#/components/responses/405"
+          },
+          "406": {
+            "$ref": "#/components/responses/406"
+          },
+          "429": {
+            "$ref": "#/components/responses/429"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          },
+          "503": {
+            "$ref": "#/components/responses/503"
+          },
+          "200": {
+            "description": "Consulta exitosa. Colecciones vacías conservan 200; recurso padre inexistente devuelve 404 cuando aplica.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "X-Request-Received-At": {
+                "$ref": "#/components/headers/X-Request-Received-At"
+              },
+              "Date": {
+                "$ref": "#/components/headers/Date"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/API17Response"
+                },
+                "examples": {
+                  "conDatos": {
+                    "summary": "Ejemplo ilustrativo; no acredita registros o relaciones existentes.",
+                    "value": {
+                      "data": [
+                        {
+                          "id": "1",
+                          "kind": "bibliography",
+                          "citation": "Referencia ilustrativa",
+                          "source_id": null,
+                          "external_id": null,
+                          "url": null
+                        }
+                      ],
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z",
+                        "pagination": {
+                          "page": 1,
+                          "page_size": 24,
+                          "total": 1,
+                          "total_pages": 1
+                        }
+                      }
+                    }
+                  },
+                  "sinDatos": {
+                    "value": {
+                      "data": [],
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z",
+                        "pagination": {
+                          "page": 1,
+                          "page_size": 24,
+                          "total": 0,
+                          "total_pages": 0
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-database-tables": [
+          "taxon_concepts",
+          "taxon_external_identifiers",
+          "species_profiles"
+        ]
+      }
+    },
+    "/api/v1/especies/{id}/relacionadas": {
+      "get": {
+        "tags": [
+          "Ficha"
+        ],
+        "operationId": "api18",
+        "summary": "API-18 — Especies relacionadas",
+        "description": "Propuesta: similares comparte género; mixto prioriza mismo género y completa con misma familia. Excluir especie consultada y duplicados, desempatar por id. Criterio pendiente de validación. Sin body. Parámetros desconocidos o repetidos: 400. Requiere identidad mTLS con permiso de lectura.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestId"
+          },
+          {
+            "name": "modo",
+            "in": "query",
+            "required": false,
+            "description": "Criterio de sugerencia.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "similares",
+                "mixto"
+              ],
+              "default": "similares"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Máximo de resultados.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador de taxon_concepts.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$",
+              "description": "Identificador decimal serializado como cadena para evitar pérdida de precisión."
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "403": {
+            "$ref": "#/components/responses/403"
+          },
+          "404": {
+            "$ref": "#/components/responses/404"
+          },
+          "405": {
+            "$ref": "#/components/responses/405"
+          },
+          "406": {
+            "$ref": "#/components/responses/406"
+          },
+          "429": {
+            "$ref": "#/components/responses/429"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          },
+          "503": {
+            "$ref": "#/components/responses/503"
+          },
+          "200": {
+            "description": "Consulta exitosa. Colecciones vacías conservan 200; recurso padre inexistente devuelve 404 cuando aplica.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "X-Request-Received-At": {
+                "$ref": "#/components/headers/X-Request-Received-At"
+              },
+              "Date": {
+                "$ref": "#/components/headers/Date"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/API18Response"
+                },
+                "examples": {
+                  "conDatos": {
+                    "summary": "Ejemplo ilustrativo; no acredita registros o relaciones existentes.",
+                    "value": {
+                      "data": [
+                        {
+                          "id": "4426186",
+                          "canonical_name": "Romerolagus diazi",
+                          "preferred_common_name": "Teporingo",
+                          "image": null,
+                          "species_profile": "/api/v1/especies/4426186",
+                          "distance_km": null
+                        }
+                      ],
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z"
+                      }
+                    }
+                  },
+                  "sinDatos": {
+                    "value": {
+                      "data": [],
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-database-tables": [
+          "taxon_concepts",
+          "taxon_names",
+          "vernacular_names",
+          "taxon_media",
+          "species_profiles"
+        ]
+      }
+    },
+    "/api/v1/especies/{id}/ocurrencias": {
+      "get": {
+        "tags": [
+          "Geografía"
+        ],
+        "operationId": "api19",
+        "summary": "API-19 — Ocurrencias de especie",
+        "description": "Solo Point publicables; fechas y precisión conocidas o null; orden por id. Colección vacía si no hay registros permitidos. Sin body. Parámetros desconocidos o repetidos: 400. Requiere identidad mTLS con permiso de lectura.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestId"
+          },
+          {
+            "name": "bbox",
+            "in": "query",
+            "required": false,
+            "description": "west,south,east,north en WGS84. -180 <= west < east <= 180; -90 <= south < north <= 90. Sin cruce del antimeridiano; dividir en dos consultas.",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "number"
+              },
+              "minItems": 4,
+              "maxItems": 4
+            },
+            "style": "form",
+            "explode": false
+          },
+          {
+            "name": "calidad",
+            "in": "query",
+            "required": false,
+            "description": "Código de calidad; catálogo pendiente.",
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 50
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "description": "Página; fuera de rango devuelve colección vacía.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "description": "Máximo de elementos por página.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 24
+            }
+          },
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "description": "Identificador de taxon_concepts.",
+            "schema": {
+              "type": "string",
+              "pattern": "^[1-9][0-9]*$",
+              "description": "Identificador decimal serializado como cadena para evitar pérdida de precisión."
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "403": {
+            "$ref": "#/components/responses/403"
+          },
+          "404": {
+            "$ref": "#/components/responses/404"
+          },
+          "405": {
+            "$ref": "#/components/responses/405"
+          },
+          "406": {
+            "$ref": "#/components/responses/406"
+          },
+          "429": {
+            "$ref": "#/components/responses/429"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          },
+          "503": {
+            "$ref": "#/components/responses/503"
+          },
+          "200": {
+            "description": "Consulta exitosa. Colecciones vacías conservan 200; recurso padre inexistente devuelve 404 cuando aplica.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "X-Request-Received-At": {
+                "$ref": "#/components/headers/X-Request-Received-At"
+              },
+              "Date": {
+                "$ref": "#/components/headers/Date"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/API19Response"
+                },
+                "examples": {
+                  "conDatos": {
+                    "summary": "Ejemplo ilustrativo; no acredita registros o relaciones existentes.",
+                    "value": {
+                      "data": {
+                        "type": "FeatureCollection",
+                        "features": [
+                          {
+                            "type": "Feature",
+                            "id": "observation:1",
+                            "geometry": {
+                              "type": "Point",
+                              "coordinates": [
+                                -99.13,
+                                19.43
+                              ]
+                            },
+                            "properties": {
+                              "taxon_id": "4426186",
+                              "kind": "observation",
+                              "distribution_type": null,
+                              "quality_grade": "research",
+                              "event_date": "2026-11-05T02:30:00.000Z",
+                              "coordinate_uncertainty_m": 100,
+                              "source_id": null,
+                              "confidence_level": null
+                            }
+                          }
+                        ]
+                      },
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z",
+                        "pagination": {
+                          "page": 1,
+                          "page_size": 24,
+                          "total": 1,
+                          "total_pages": 1
+                        }
+                      }
+                    }
+                  },
+                  "sinDatos": {
+                    "value": {
+                      "data": {
+                        "type": "FeatureCollection",
+                        "features": []
+                      },
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z",
+                        "pagination": {
+                          "page": 1,
+                          "page_size": 24,
+                          "total": 0,
+                          "total_pages": 0
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-database-tables": [
+          "observations"
+        ]
+      }
+    },
+    "/api/v1/especies/cercanas": {
+      "get": {
+        "tags": [
+          "Geografía"
+        ],
+        "operationId": "api20",
+        "summary": "API-20 — Especies cercanas",
+        "description": "Distancia geodésica mínima por especie dentro del radio, orden distancia,id y después límite. Solo coordenadas publicables de registros válidos. Sin body. Parámetros desconocidos o repetidos: 400. Requiere identidad mTLS con permiso de lectura.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestId"
+          },
+          {
+            "name": "lat",
+            "in": "query",
+            "required": true,
+            "description": "Latitud; se requiere lng conjuntamente.",
+            "schema": {
+              "type": "number",
+              "minimum": -90,
+              "maximum": 90
+            }
+          },
+          {
+            "name": "lng",
+            "in": "query",
+            "required": true,
+            "description": "Longitud; se requiere lat conjuntamente.",
+            "schema": {
+              "type": "number",
+              "minimum": -180,
+              "maximum": 180
+            }
+          },
+          {
+            "name": "radio_km",
+            "in": "query",
+            "required": false,
+            "description": "Radio; requiere lat y lng.",
+            "schema": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "maximum": 500,
+              "default": 100
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "description": "Máximo de resultados.",
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 20
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "403": {
+            "$ref": "#/components/responses/403"
+          },
+          "405": {
+            "$ref": "#/components/responses/405"
+          },
+          "406": {
+            "$ref": "#/components/responses/406"
+          },
+          "429": {
+            "$ref": "#/components/responses/429"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          },
+          "503": {
+            "$ref": "#/components/responses/503"
+          },
+          "200": {
+            "description": "Consulta exitosa. Colecciones vacías conservan 200; recurso padre inexistente devuelve 404 cuando aplica.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "X-Request-Received-At": {
+                "$ref": "#/components/headers/X-Request-Received-At"
+              },
+              "Date": {
+                "$ref": "#/components/headers/Date"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/API20Response"
+                },
+                "examples": {
+                  "conDatos": {
+                    "summary": "Ejemplo ilustrativo; no acredita registros o relaciones existentes.",
+                    "value": {
+                      "data": [
+                        {
+                          "id": "4426186",
+                          "canonical_name": "Romerolagus diazi",
+                          "preferred_common_name": "Teporingo",
+                          "image": null,
+                          "species_profile": "/api/v1/especies/4426186",
+                          "distance_km": 1.2
+                        }
+                      ],
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z"
+                      }
+                    }
+                  },
+                  "sinDatos": {
+                    "value": {
+                      "data": [],
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-database-tables": [
+          "taxon_concepts",
+          "taxon_names",
+          "vernacular_names",
+          "taxon_media",
+          "observations"
+        ]
+      }
+    },
+    "/api/v1/ubicacion/aproximada": {
+      "get": {
+        "tags": [
+          "Geografía"
+        ],
+        "operationId": "api21",
+        "summary": "API-21 — Ubicación aproximada",
+        "description": "Con mTLS la IP de conexión es del backend, no del visitante. Propuesta explícita: ip requerida, rechazar privadas/reservadas (400), no confiar en X-Forwarded-For arbitrario. 404 sin ubicación; 503 proveedor indisponible. Proveedor y política de privacidad pendientes. Sin body. Parámetros desconocidos o repetidos: 400. Requiere identidad mTLS con permiso de lectura.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/RequestId"
+          },
+          {
+            "name": "ip",
+            "in": "query",
+            "required": true,
+            "description": "IPv4 o IPv6 pública del visitante remitida por backend autorizado; validar ambas familias.",
+            "schema": {
+              "type": "string",
+              "format": "ip-address",
+              "maxLength": 45
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "$ref": "#/components/responses/400"
+          },
+          "403": {
+            "$ref": "#/components/responses/403"
+          },
+          "404": {
+            "$ref": "#/components/responses/404"
+          },
+          "405": {
+            "$ref": "#/components/responses/405"
+          },
+          "406": {
+            "$ref": "#/components/responses/406"
+          },
+          "429": {
+            "$ref": "#/components/responses/429"
+          },
+          "500": {
+            "$ref": "#/components/responses/500"
+          },
+          "503": {
+            "$ref": "#/components/responses/503"
+          },
+          "200": {
+            "description": "Consulta exitosa. Colecciones vacías conservan 200; recurso padre inexistente devuelve 404 cuando aplica.",
+            "headers": {
+              "X-Request-ID": {
+                "$ref": "#/components/headers/X-Request-ID"
+              },
+              "X-Request-Received-At": {
+                "$ref": "#/components/headers/X-Request-Received-At"
+              },
+              "Date": {
+                "$ref": "#/components/headers/Date"
+              },
+              "Cache-Control": {
+                "$ref": "#/components/headers/Cache-Control"
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/API21Response"
+                },
+                "examples": {
+                  "conDatos": {
+                    "summary": "Ejemplo ilustrativo; no acredita registros o relaciones existentes.",
+                    "value": {
+                      "data": {
+                        "latitude": 19.43,
+                        "longitude": -99.13,
+                        "accuracy_km": 50,
+                        "source": "ip",
+                        "country_code": "MX",
+                        "region": "Ciudad de México"
+                      },
+                      "meta": {
+                        "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+                        "timestamp": "2026-11-05T02:30:00.000Z"
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "x-database-tables": [
+          "Proveedor externo de geolocalización IP"
+        ]
       }
     }
   },
   "components": {
-    "schemas": {
-      "DescubrirResponse": {
-        "type": "object",
-        "required": [
-          "data",
-          "pagination"
-        ],
-        "properties": {
-          "data": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/EspecieTarjeta"
+    "securitySchemes": {
+      "clientCertificate": {
+        "type": "mutualTLS",
+        "description": "Certificado y clave presentados en TLS, no en headers ni JavaScript público. Configurar confianza de CA del servidor; no desactivar verificación TLS."
+      }
+    },
+    "parameters": {
+      "RequestId": {
+        "name": "X-Request-ID",
+        "in": "header",
+        "required": false,
+        "description": "UUID opcional. Si falta o es inválido, generar uno nuevo; no rechazar por este motivo.",
+        "schema": {
+          "type": "string"
+        },
+        "example": "8dd7629a-6df8-4c74-9f63-cb89d823fc65"
+      }
+    },
+    "headers": {
+      "X-Request-ID": {
+        "description": "UUID aceptado o generado; coincide con meta.request_id o request_id del error.",
+        "schema": {
+          "type": "string",
+          "format": "uuid"
+        },
+        "example": "8dd7629a-6df8-4c74-9f63-cb89d823fc65"
+      },
+      "X-Request-Received-At": {
+        "description": "Recepción UTC; coincide con meta.timestamp o timestamp del error.",
+        "schema": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "example": "2026-11-05T02:30:00.000Z"
+      },
+      "Date": {
+        "description": "Generación de la respuesta, HTTP-date.",
+        "schema": {
+          "type": "string"
+        },
+        "example": "Thu, 05 Nov 2026 02:30:00 GMT"
+      },
+      "Cache-Control": {
+        "description": "No almacenar respuesta.",
+        "schema": {
+          "type": "string",
+          "const": "no-store"
+        },
+        "example": "no-store"
+      }
+    },
+    "responses": {
+      "400": {
+        "description": "Parámetros desconocidos, repetidos o inválidos; body no admitido.",
+        "headers": {
+          "X-Request-ID": {
+            "$ref": "#/components/headers/X-Request-ID"
+          },
+          "X-Request-Received-At": {
+            "$ref": "#/components/headers/X-Request-Received-At"
+          },
+          "Date": {
+            "$ref": "#/components/headers/Date"
+          },
+          "Cache-Control": {
+            "$ref": "#/components/headers/Cache-Control"
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                {
+                  "properties": {
+                    "status": {
+                      "const": 400
+                    },
+                    "code": {
+                      "const": "BAD_REQUEST"
+                    }
+                  }
+                }
+              ]
+            },
+            "example": {
+              "type": "urn:especies:problem:bad-request",
+              "title": "Solicitud inválida",
+              "status": 400,
+              "detail": "Parámetros desconocidos, repetidos o inválidos; body no admitido.",
+              "instance": "urn:uuid:8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+              "code": "BAD_REQUEST",
+              "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+              "timestamp": "2026-11-05T02:30:00.000Z"
             }
-          },
-          "pagination": {
-            "$ref": "#/components/schemas/Pagination"
           }
         }
       },
-      "EspecieTarjeta": {
-        "type": "object",
-        "required": [
-          "id",
-          "nombre_cientifico",
-          "nombre_comun",
-          "grupo",
-          "imagen"
-        ],
-        "properties": {
-          "id": {
-            "type": "integer",
-            "format": "int64",
-            "description": "taxon_concepts.id"
+      "403": {
+        "description": "Identidad del cliente aceptada, sin permiso de lectura.",
+        "headers": {
+          "X-Request-ID": {
+            "$ref": "#/components/headers/X-Request-ID"
           },
-          "nombre_cientifico": {
-            "type": "string",
-            "description": "taxon_names.scientific_name; usar canonical_name si falta."
+          "X-Request-Received-At": {
+            "$ref": "#/components/headers/X-Request-Received-At"
           },
-          "nombre_comun": {
-            "type": "string",
-            "nullable": true
+          "Date": {
+            "$ref": "#/components/headers/Date"
           },
-          "grupo": {
-            "type": "string",
-            "enum": [
-              "animales",
-              "plantas",
-              "hongos"
-            ]
-          },
-          "imagen": {
-            "allOf": [
-              {
-                "$ref": "#/components/schemas/Imagen"
-              }
-            ],
-            "nullable": true,
-            "description": "Imagen representativa; null cuando no está disponible."
+          "Cache-Control": {
+            "$ref": "#/components/headers/Cache-Control"
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                {
+                  "properties": {
+                    "status": {
+                      "const": 403
+                    },
+                    "code": {
+                      "const": "FORBIDDEN"
+                    }
+                  }
+                }
+              ]
+            },
+            "example": {
+              "type": "urn:especies:problem:forbidden",
+              "title": "Acceso denegado",
+              "status": 403,
+              "detail": "Identidad del cliente aceptada, sin permiso de lectura.",
+              "instance": "urn:uuid:8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+              "code": "FORBIDDEN",
+              "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+              "timestamp": "2026-11-05T02:30:00.000Z"
+            }
           }
         }
       },
-      "Imagen": {
-        "type": "object",
-        "nullable": true,
-        "required": [
-          "url",
-          "thumbnail_url",
-          "autor",
-          "licencia"
-        ],
-        "properties": {
-          "url": {
-            "type": "string",
-            "format": "uri"
+      "404": {
+        "description": "No existe el recurso o selección vigente.",
+        "headers": {
+          "X-Request-ID": {
+            "$ref": "#/components/headers/X-Request-ID"
           },
-          "thumbnail_url": {
-            "type": "string",
-            "format": "uri",
-            "nullable": true
+          "X-Request-Received-At": {
+            "$ref": "#/components/headers/X-Request-Received-At"
           },
-          "autor": {
-            "type": "string",
-            "nullable": true
+          "Date": {
+            "$ref": "#/components/headers/Date"
           },
-          "licencia": {
-            "type": "string",
-            "nullable": true
+          "Cache-Control": {
+            "$ref": "#/components/headers/Cache-Control"
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                {
+                  "properties": {
+                    "status": {
+                      "const": 404
+                    },
+                    "code": {
+                      "const": "NOT_FOUND"
+                    }
+                  }
+                }
+              ]
+            },
+            "example": {
+              "type": "urn:especies:problem:not-found",
+              "title": "Recurso no encontrado",
+              "status": 404,
+              "detail": "No existe el recurso o selección vigente.",
+              "instance": "urn:uuid:8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+              "code": "NOT_FOUND",
+              "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+              "timestamp": "2026-11-05T02:30:00.000Z"
+            }
           }
         }
+      },
+      "405": {
+        "description": "Solo se admite GET.",
+        "headers": {
+          "X-Request-ID": {
+            "$ref": "#/components/headers/X-Request-ID"
+          },
+          "X-Request-Received-At": {
+            "$ref": "#/components/headers/X-Request-Received-At"
+          },
+          "Date": {
+            "$ref": "#/components/headers/Date"
+          },
+          "Cache-Control": {
+            "$ref": "#/components/headers/Cache-Control"
+          },
+          "Allow": {
+            "schema": {
+              "type": "string",
+              "const": "GET"
+            },
+            "example": "GET",
+            "description": "Método admitido."
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                {
+                  "properties": {
+                    "status": {
+                      "const": 405
+                    },
+                    "code": {
+                      "const": "METHOD_NOT_ALLOWED"
+                    }
+                  }
+                }
+              ]
+            },
+            "example": {
+              "type": "urn:especies:problem:method-not-allowed",
+              "title": "Método no permitido",
+              "status": 405,
+              "detail": "Solo se admite GET.",
+              "instance": "urn:uuid:8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+              "code": "METHOD_NOT_ALLOWED",
+              "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+              "timestamp": "2026-11-05T02:30:00.000Z"
+            }
+          }
+        }
+      },
+      "406": {
+        "description": "Accept no permite application/json para la respuesta exitosa.",
+        "headers": {
+          "X-Request-ID": {
+            "$ref": "#/components/headers/X-Request-ID"
+          },
+          "X-Request-Received-At": {
+            "$ref": "#/components/headers/X-Request-Received-At"
+          },
+          "Date": {
+            "$ref": "#/components/headers/Date"
+          },
+          "Cache-Control": {
+            "$ref": "#/components/headers/Cache-Control"
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                {
+                  "properties": {
+                    "status": {
+                      "const": 406
+                    },
+                    "code": {
+                      "const": "NOT_ACCEPTABLE"
+                    }
+                  }
+                }
+              ]
+            },
+            "example": {
+              "type": "urn:especies:problem:not-acceptable",
+              "title": "Formato no admitido",
+              "status": 406,
+              "detail": "Accept no permite application/json para la respuesta exitosa.",
+              "instance": "urn:uuid:8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+              "code": "NOT_ACCEPTABLE",
+              "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+              "timestamp": "2026-11-05T02:30:00.000Z"
+            }
+          }
+        }
+      },
+      "429": {
+        "description": "Se excedió el límite de solicitudes.",
+        "headers": {
+          "X-Request-ID": {
+            "$ref": "#/components/headers/X-Request-ID"
+          },
+          "X-Request-Received-At": {
+            "$ref": "#/components/headers/X-Request-Received-At"
+          },
+          "Date": {
+            "$ref": "#/components/headers/Date"
+          },
+          "Cache-Control": {
+            "$ref": "#/components/headers/Cache-Control"
+          },
+          "Retry-After": {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            },
+            "example": "60",
+            "description": "Segundos de espera antes de reintentar."
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                {
+                  "properties": {
+                    "status": {
+                      "const": 429
+                    },
+                    "code": {
+                      "const": "RATE_LIMITED"
+                    }
+                  }
+                }
+              ]
+            },
+            "example": {
+              "type": "urn:especies:problem:rate-limited",
+              "title": "Límite de solicitudes",
+              "status": 429,
+              "detail": "Se excedió el límite de solicitudes.",
+              "instance": "urn:uuid:8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+              "code": "RATE_LIMITED",
+              "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+              "timestamp": "2026-11-05T02:30:00.000Z"
+            }
+          }
+        }
+      },
+      "500": {
+        "description": "No fue posible completar la consulta.",
+        "headers": {
+          "X-Request-ID": {
+            "$ref": "#/components/headers/X-Request-ID"
+          },
+          "X-Request-Received-At": {
+            "$ref": "#/components/headers/X-Request-Received-At"
+          },
+          "Date": {
+            "$ref": "#/components/headers/Date"
+          },
+          "Cache-Control": {
+            "$ref": "#/components/headers/Cache-Control"
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                {
+                  "properties": {
+                    "status": {
+                      "const": 500
+                    },
+                    "code": {
+                      "const": "INTERNAL_ERROR"
+                    }
+                  }
+                }
+              ]
+            },
+            "example": {
+              "type": "urn:especies:problem:internal-error",
+              "title": "Error interno",
+              "status": 500,
+              "detail": "No fue posible completar la consulta.",
+              "instance": "urn:uuid:8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+              "code": "INTERNAL_ERROR",
+              "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+              "timestamp": "2026-11-05T02:30:00.000Z"
+            }
+          }
+        }
+      },
+      "503": {
+        "description": "Dependencia temporalmente indisponible.",
+        "headers": {
+          "X-Request-ID": {
+            "$ref": "#/components/headers/X-Request-ID"
+          },
+          "X-Request-Received-At": {
+            "$ref": "#/components/headers/X-Request-Received-At"
+          },
+          "Date": {
+            "$ref": "#/components/headers/Date"
+          },
+          "Cache-Control": {
+            "$ref": "#/components/headers/Cache-Control"
+          },
+          "Retry-After": {
+            "schema": {
+              "type": "string",
+              "pattern": "^[0-9]+$"
+            },
+            "example": "60",
+            "description": "Segundos de espera antes de reintentar."
+          }
+        },
+        "content": {
+          "application/problem+json": {
+            "schema": {
+              "allOf": [
+                {
+                  "$ref": "#/components/schemas/Problem"
+                },
+                {
+                  "properties": {
+                    "status": {
+                      "const": 503
+                    },
+                    "code": {
+                      "const": "SERVICE_UNAVAILABLE"
+                    }
+                  }
+                }
+              ]
+            },
+            "example": {
+              "type": "urn:especies:problem:service-unavailable",
+              "title": "Servicio no disponible",
+              "status": 503,
+              "detail": "Dependencia temporalmente indisponible.",
+              "instance": "urn:uuid:8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+              "code": "SERVICE_UNAVAILABLE",
+              "request_id": "8dd7629a-6df8-4c74-9f63-cb89d823fc65",
+              "timestamp": "2026-11-05T02:30:00.000Z"
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Meta": {
+        "type": "object",
+        "required": [
+          "request_id",
+          "timestamp"
+        ],
+        "properties": {
+          "request_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
+          }
+        },
+        "additionalProperties": false
       },
       "Pagination": {
         "type": "object",
@@ -279,31 +3787,1794 @@
           },
           "total": {
             "type": "integer",
-            "format": "int64",
-            "minimum": 0,
-            "description": "Total de conceptos distintos que cumplen el filtro."
+            "minimum": 0
           },
           "total_pages": {
             "type": "integer",
-            "minimum": 0,
-            "description": "Techo de total / page_size; 0 si no hay resultados."
+            "minimum": 0
           }
-        }
+        },
+        "additionalProperties": false
       },
-      "Error": {
+      "Image": {
         "type": "object",
         "required": [
-          "code",
-          "message"
+          "url",
+          "alt",
+          "credit",
+          "license",
+          "source_url"
         ],
         "properties": {
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "alt": {
+            "type": "string"
+          },
+          "credit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "license": {
+            "type": "string"
+          },
+          "source_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uri"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "Taxon": {
+        "type": "object",
+        "required": [
+          "id",
+          "canonical_name",
+          "preferred_common_name",
+          "rank"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*$",
+            "description": "Identificador decimal serializado como cadena para evitar pérdida de precisión."
+          },
+          "canonical_name": {
+            "type": "string"
+          },
+          "preferred_common_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "rank": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Card": {
+        "type": "object",
+        "required": [
+          "id",
+          "canonical_name",
+          "preferred_common_name",
+          "image",
+          "species_profile",
+          "distance_km"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*$",
+            "description": "Identificador decimal serializado como cadena para evitar pérdida de precisión."
+          },
+          "canonical_name": {
+            "type": "string"
+          },
+          "preferred_common_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Image"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "species_profile": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uri-reference"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "distance_km": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "Featured": {
+        "type": "object",
+        "required": [
+          "id",
+          "locale",
+          "starts_at",
+          "ends_at",
+          "title",
+          "description",
+          "image",
+          "taxon",
+          "links"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*$",
+            "description": "Identificador decimal serializado como cadena para evitar pérdida de precisión."
+          },
+          "locale": {
+            "type": "string",
+            "const": "es-MX"
+          },
+          "starts_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "ends_at": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Image"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "taxon": {
+            "$ref": "#/components/schemas/Taxon"
+          },
+          "links": {
+            "type": "object",
+            "required": [
+              "self",
+              "species_profile"
+            ],
+            "properties": {
+              "self": {
+                "type": "string",
+                "format": "uri-reference"
+              },
+              "species_profile": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "uri-reference"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "FilterOption": {
+        "type": "object",
+        "required": [
+          "value",
+          "label"
+        ],
+        "properties": {
+          "value": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Filters": {
+        "type": "object",
+        "required": [
+          "reinos",
+          "rangos",
+          "riesgo",
+          "endemismo",
+          "usos",
+          "distribucion"
+        ],
+        "properties": {
+          "reinos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FilterOption"
+            }
+          },
+          "rangos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FilterOption"
+            }
+          },
+          "riesgo": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FilterOption"
+            }
+          },
+          "endemismo": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FilterOption"
+            }
+          },
+          "usos": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FilterOption"
+            }
+          },
+          "distribucion": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/FilterOption"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "Profile": {
+        "type": "object",
+        "required": [
+          "taxon",
+          "profile_id",
+          "title",
+          "short_description",
+          "full_description",
+          "scientific_name_authorship",
+          "taxonomic_status",
+          "image"
+        ],
+        "properties": {
+          "taxon": {
+            "$ref": "#/components/schemas/Taxon"
+          },
+          "profile_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[1-9][0-9]*$",
+                "description": "Identificador decimal serializado como cadena para evitar pérdida de precisión."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "short_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "full_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "scientific_name_authorship": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "taxonomic_status": {
+            "type": "string"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Image"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "Section": {
+        "type": "object",
+        "required": [
+          "key",
+          "title",
+          "content"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "content": {
+            "type": "string",
+            "description": "Texto plano; no ejecutar como HTML."
+          }
+        },
+        "additionalProperties": false
+      },
+      "Use": {
+        "type": "object",
+        "required": [
+          "id",
+          "category",
+          "subcategory",
+          "part_used",
+          "preparation",
+          "cultural_context",
+          "evidence_type",
+          "remarks"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*$",
+            "description": "Identificador decimal serializado como cadena para evitar pérdida de precisión."
+          },
+          "category": {
+            "type": "string"
+          },
+          "subcategory": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "part_used": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "preparation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "cultural_context": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "evidence_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "remarks": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "Media": {
+        "type": "object",
+        "required": [
+          "id",
+          "origin",
+          "media_type",
+          "url",
+          "thumbnail_url",
+          "credit",
+          "license"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*$",
+            "description": "Identificador decimal serializado como cadena para evitar pérdida de precisión."
+          },
+          "origin": {
+            "type": "string",
+            "enum": [
+              "taxon_media",
+              "observation_media"
+            ]
+          },
+          "media_type": {
+            "type": "string",
+            "enum": [
+              "image",
+              "audio",
+              "video"
+            ]
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "thumbnail_url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uri"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "credit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "license": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      },
+      "Interaction": {
+        "type": "object",
+        "required": [
+          "id",
+          "subject",
+          "object",
+          "interaction_type",
+          "direction",
+          "remarks"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "pattern": "^[1-9][0-9]*$",
+            "description": "Identificador decimal serializado como cadena para evitar pérdida de precisión."
+          },
+          "subject": {
+            "$ref": "#/components/schemas/Taxon"
+          },
+          "object": {
+            "$ref": "#/components/schemas/Taxon"
+          },
+          "interaction_type": {
+            "type": "string"
+          },
+          "direction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "remarks": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "Reference": {
+        "type": "object",
+        "required": [
+          "id",
+          "kind",
+          "citation",
+          "source_id",
+          "external_id",
+          "url"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "bibliography",
+              "external_identifier",
+              "profile_source"
+            ]
+          },
+          "citation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[1-9][0-9]*$",
+                "description": "Identificador decimal serializado como cadena para evitar pérdida de precisión."
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "external_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "url": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uri"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "Location": {
+        "type": "object",
+        "required": [
+          "latitude",
+          "longitude",
+          "accuracy_km",
+          "source",
+          "country_code",
+          "region"
+        ],
+        "properties": {
+          "latitude": {
+            "type": "number",
+            "minimum": -90,
+            "maximum": 90
+          },
+          "longitude": {
+            "type": "number",
+            "minimum": -180,
+            "maximum": 180
+          },
+          "accuracy_km": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "source": {
+            "type": "string",
+            "const": "ip"
+          },
+          "country_code": {
+            "type": "string",
+            "pattern": "^[A-Z]{2}$"
+          },
+          "region": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
+      "Problem": {
+        "type": "object",
+        "required": [
+          "type",
+          "title",
+          "status",
+          "detail",
+          "instance",
+          "code",
+          "request_id",
+          "timestamp"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "format": "uri"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "integer",
+            "minimum": 400,
+            "maximum": 599
+          },
+          "detail": {
+            "type": "string"
+          },
+          "instance": {
+            "type": "string",
+            "format": "uri"
+          },
           "code": {
             "type": "string"
           },
-          "message": {
-            "type": "string"
+          "request_id": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "timestamp": {
+            "type": "string",
+            "format": "date-time"
           }
-        }
+        },
+        "additionalProperties": false
+      },
+      "Geometry": {
+        "oneOf": [
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "coordinates"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "Point"
+              },
+              "coordinates": {
+                "type": "array",
+                "prefixItems": [
+                  {
+                    "type": "number",
+                    "minimum": -180,
+                    "maximum": 180
+                  },
+                  {
+                    "type": "number",
+                    "minimum": -90,
+                    "maximum": 90
+                  }
+                ],
+                "minItems": 2,
+                "maxItems": 2
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "coordinates"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "Polygon"
+              },
+              "coordinates": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "prefixItems": [
+                      {
+                        "type": "number",
+                        "minimum": -180,
+                        "maximum": 180
+                      },
+                      {
+                        "type": "number",
+                        "minimum": -90,
+                        "maximum": 90
+                      }
+                    ],
+                    "minItems": 2,
+                    "maxItems": 2
+                  },
+                  "minItems": 4,
+                  "description": "Anillo cerrado: primera y última posición idénticas."
+                },
+                "minItems": 1
+              }
+            },
+            "additionalProperties": false
+          },
+          {
+            "type": "object",
+            "required": [
+              "type",
+              "coordinates"
+            ],
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "MultiPolygon"
+              },
+              "coordinates": {
+                "type": "array",
+                "items": {
+                  "type": "array",
+                  "items": {
+                    "type": "array",
+                    "items": {
+                      "type": "array",
+                      "prefixItems": [
+                        {
+                          "type": "number",
+                          "minimum": -180,
+                          "maximum": 180
+                        },
+                        {
+                          "type": "number",
+                          "minimum": -90,
+                          "maximum": 90
+                        }
+                      ],
+                      "minItems": 2,
+                      "maxItems": 2
+                    },
+                    "minItems": 4,
+                    "description": "Anillo cerrado: primera y última posición idénticas."
+                  },
+                  "minItems": 1
+                },
+                "minItems": 1
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
+      "Feature": {
+        "type": "object",
+        "required": [
+          "type",
+          "id",
+          "geometry",
+          "properties"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "Feature"
+          },
+          "id": {
+            "type": "string"
+          },
+          "geometry": {
+            "$ref": "#/components/schemas/Geometry"
+          },
+          "properties": {
+            "type": "object",
+            "required": [
+              "taxon_id",
+              "kind",
+              "distribution_type",
+              "quality_grade",
+              "event_date",
+              "coordinate_uncertainty_m",
+              "source_id",
+              "confidence_level"
+            ],
+            "properties": {
+              "taxon_id": {
+                "type": "string",
+                "pattern": "^[1-9][0-9]*$",
+                "description": "Identificador decimal serializado como cadena para evitar pérdida de precisión."
+              },
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "observation",
+                  "distribution"
+                ]
+              },
+              "distribution_type": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "enum": [
+                      "conocida",
+                      "estimada",
+                      "potencial"
+                    ]
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "quality_grade": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "event_date": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "format": "date-time"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "coordinate_uncertainty_m": {
+                "anyOf": [
+                  {
+                    "type": "number",
+                    "minimum": 0
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "source_id": {
+                "anyOf": [
+                  {
+                    "type": "string",
+                    "pattern": "^[1-9][0-9]*$",
+                    "description": "Identificador decimal serializado como cadena para evitar pérdida de precisión."
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              },
+              "confidence_level": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "FeatureCollection": {
+        "type": "object",
+        "required": [
+          "type",
+          "features"
+        ],
+        "properties": {
+          "type": {
+            "type": "string",
+            "const": "FeatureCollection"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Feature"
+            }
+          }
+        },
+        "additionalProperties": false
+      },
+      "API01Response": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Card"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "request_id",
+              "timestamp",
+              "pagination"
+            ],
+            "properties": {
+              "request_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "pagination": {
+                "$ref": "#/components/schemas/Pagination"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "API02Response": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Featured"
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "request_id",
+              "timestamp"
+            ],
+            "properties": {
+              "request_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "API03Response": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Card"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "request_id",
+              "timestamp",
+              "pagination"
+            ],
+            "properties": {
+              "request_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "pagination": {
+                "$ref": "#/components/schemas/Pagination"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "API04Response": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Filters"
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "request_id",
+              "timestamp"
+            ],
+            "properties": {
+              "request_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "API05Response": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/FeatureCollection"
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "request_id",
+              "timestamp",
+              "pagination"
+            ],
+            "properties": {
+              "request_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "pagination": {
+                "$ref": "#/components/schemas/Pagination"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "API06Response": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Card"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "request_id",
+              "timestamp",
+              "pagination"
+            ],
+            "properties": {
+              "request_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "pagination": {
+                "$ref": "#/components/schemas/Pagination"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "API07Response": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Card"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "request_id",
+              "timestamp",
+              "pagination"
+            ],
+            "properties": {
+              "request_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "pagination": {
+                "$ref": "#/components/schemas/Pagination"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "API08Response": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Card"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "request_id",
+              "timestamp",
+              "seed"
+            ],
+            "properties": {
+              "request_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "seed": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "API09Response": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Card"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "request_id",
+              "timestamp",
+              "pagination",
+              "sort",
+              "seed"
+            ],
+            "properties": {
+              "request_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "pagination": {
+                "$ref": "#/components/schemas/Pagination"
+              },
+              "sort": {
+                "type": "string",
+                "enum": [
+                  "id_asc",
+                  "name_asc",
+                  "distance_asc",
+                  "random"
+                ]
+              },
+              "seed": {
+                "anyOf": [
+                  {
+                    "type": "string"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ]
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "API10Response": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Profile"
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "request_id",
+              "timestamp"
+            ],
+            "properties": {
+              "request_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "API11Response": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Section"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "request_id",
+              "timestamp",
+              "pagination"
+            ],
+            "properties": {
+              "request_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "pagination": {
+                "$ref": "#/components/schemas/Pagination"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "API12Response": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/FeatureCollection"
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "request_id",
+              "timestamp",
+              "pagination"
+            ],
+            "properties": {
+              "request_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "pagination": {
+                "$ref": "#/components/schemas/Pagination"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "API13Response": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Use"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "request_id",
+              "timestamp",
+              "pagination"
+            ],
+            "properties": {
+              "request_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "pagination": {
+                "$ref": "#/components/schemas/Pagination"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "API14Response": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Taxon"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "request_id",
+              "timestamp"
+            ],
+            "properties": {
+              "request_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "API15Response": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Media"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "request_id",
+              "timestamp",
+              "pagination"
+            ],
+            "properties": {
+              "request_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "pagination": {
+                "$ref": "#/components/schemas/Pagination"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "API16Response": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Interaction"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "request_id",
+              "timestamp",
+              "pagination"
+            ],
+            "properties": {
+              "request_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "pagination": {
+                "$ref": "#/components/schemas/Pagination"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "API17Response": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Reference"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "request_id",
+              "timestamp",
+              "pagination"
+            ],
+            "properties": {
+              "request_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "pagination": {
+                "$ref": "#/components/schemas/Pagination"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "API18Response": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Card"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "request_id",
+              "timestamp"
+            ],
+            "properties": {
+              "request_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "API19Response": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/FeatureCollection"
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "request_id",
+              "timestamp",
+              "pagination"
+            ],
+            "properties": {
+              "request_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              },
+              "pagination": {
+                "$ref": "#/components/schemas/Pagination"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "API20Response": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Card"
+            }
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "request_id",
+              "timestamp"
+            ],
+            "properties": {
+              "request_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      "API21Response": {
+        "type": "object",
+        "required": [
+          "data",
+          "meta"
+        ],
+        "properties": {
+          "data": {
+            "$ref": "#/components/schemas/Location"
+          },
+          "meta": {
+            "type": "object",
+            "required": [
+              "request_id",
+              "timestamp"
+            ],
+            "properties": {
+              "request_id": {
+                "type": "string",
+                "format": "uuid"
+              },
+              "timestamp": {
+                "type": "string",
+                "format": "date-time"
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
       }
     }
   }
